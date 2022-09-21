@@ -231,20 +231,26 @@ public class Controller implements Runnable {
         List<Consumer> consumers = new ArrayList<>();
         int consumerCount = 0;
         List<Partition> parts = new ArrayList<>(partitions);
-        Map<Double, Consumer> currentConsumersByName = new HashMap<>();
+        Map<Double, List<Consumer>> currentConsumersByName = new HashMap<>();
         LeastLoadedFFD llffd = new LeastLoadedFFD(parts, 95.0);
         List<Consumer> cons = llffd.LeastLoadFFDHeterogenous();
 
-        List<Consumer> conscopy = new ArrayList<>(cons);
+
+        for(double c : capacities) {
+            currentConsumersByName.putIfAbsent(c, new ArrayList<>());
+
+        }
+
 
         log.info("we currently need this consumer");
         log.info(cons);
         newassignment.clear();
-        newassignment.addAll(cons);
 
         for (Consumer co: cons) {
-            currentConsumers.put(co.getCapacity(), currentConsumers.getOrDefault(co.getCapacity() +1 ,1));
-            currentConsumersByName.put(co.getCapacity(), co);
+            log.info(co.getCapacity());
+            currentConsumers.put(co.getCapacity(), currentConsumers.get(co.getCapacity()) +1);
+            currentConsumersByName.get(co.getCapacity()).add(co);
+           // currentConsumersByName.put(co.getCapacity(), co);
         }
 
         for (double d : currentConsumers.keySet()) {
@@ -258,11 +264,25 @@ public class Controller implements Runnable {
             if (currentConsumers.get(d).equals(previousConsumers.get(d))) {
                 log.info("No need to scale consumer of capacity {}", d);
             }
-            int factor2 = currentConsumers.get(d);
 
+           // int factor2 = currentConsumers.get(d);
+
+
+/*
             for (int i =0;i<factor2; i++) {
+
                 currentConsumersByName.get(d).setId("cons"+(int)d+ "-" + i);
+            }*/
+
+            int index=0;
+            for (Consumer c:  currentConsumersByName.get(d)) {
+                c.setId("cons"+(int)d+ "-" + index);
+                index++;
+                log.info(c.getId());
             }
+
+
+
             int factor = currentConsumers.get(d); /*- previousConsumers.get(d);*/
             int  diff = currentConsumers.get(d) - previousConsumers.get(d);
             log.info("diff {} for capacity {}", diff, d);
@@ -272,8 +292,15 @@ public class Controller implements Runnable {
             log.info(" the consumer of capacity {} shall be scaled to {}", d, factor);
         }
 
+        newassignment.addAll(cons);
+
+
 
         log.info("current consumers");
+
+        for (Consumer co: cons) {
+            log.info(co);
+        }
 
         for (double d : capacities) {
             if (scaleByCapacity.get(d) != null && diffByCapacity.get(d)!=0) {
@@ -290,7 +317,6 @@ public class Controller implements Runnable {
         }
 
         for (double d : capacities) {
-            log.info(currentConsumersByName.get(d));
 
             previousConsumers.put(d, currentConsumers.get(d));
             currentConsumers.put(d, 0);
