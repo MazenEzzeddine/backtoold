@@ -238,30 +238,20 @@ public class Controller implements Runnable {
 
         log.info("we currently need this consumer");
         log.info(cons);
-
         newassignment.clear();
-
         newassignment.addAll(cons);
-
 
         for (Consumer co: cons) {
             currentConsumers.put(co.getCapacity(), currentConsumers.getOrDefault(co.getCapacity() +1 ,1));
             currentConsumersByName.put(co.getCapacity(), co);
         }
 
-
-
-
         for (double d : currentConsumers.keySet()) {
             log.info("current consumer capacity {}, {}", d, currentConsumers.get(d));
-
         }
 
-
         Map<Double, Integer> scaleByCapacity = new HashMap<>();
-
         Map<Double, Integer>  diffByCapacity = new HashMap<>();
-
 
         for (double d : currentConsumers.keySet()) {
             if (currentConsumers.get(d).equals(previousConsumers.get(d))) {
@@ -272,7 +262,6 @@ public class Controller implements Runnable {
             for (int i =0;i<factor2; i++) {
                 currentConsumersByName.get(d).setId("cons"+(int)d+ "-" + i);
             }
-
             int factor = currentConsumers.get(d); /*- previousConsumers.get(d);*/
             int  diff = currentConsumers.get(d) - previousConsumers.get(d);
             log.info("diff {} for capacity {}", diff, d);
@@ -283,18 +272,9 @@ public class Controller implements Runnable {
         }
 
 
-
-
-
-
         log.info("current consumers");
 
-
         for (double d : capacities) {
-
-/*            if(diffByCapacity.get(d) == -1)
-                continue;*/
-
             if (scaleByCapacity.get(d) != null && diffByCapacity.get(d)!=0) {
                 log.info("The statefulset {} shalll be  scaled to {}", "cons"+(int)d, scaleByCapacity.get(d) );
                 if(Duration.between(warmup, Instant.now()).toSeconds() > 30 ) {
@@ -305,13 +285,8 @@ public class Controller implements Runnable {
                     }}).start();
 
                 }
-
-
             }
-
         }
-
-
 
         for (double d : capacities) {
             log.info(currentConsumersByName.get(d));
@@ -320,268 +295,12 @@ public class Controller implements Runnable {
             currentConsumers.put(d, 0);
         }
 
-
-
-
-
-      /*  try (final KubernetesClient k8s = new DefaultKubernetesClient()) {
-            k8s.apps().statefulSets().inNamespace("default").withName()
-                    deployments().inNamespace("default").withName("cons1persec").scale(reco);
-        }*/
-
-
-
-
-
     }
 
 
 
 
-   /* private static void youMightWanttoScaleUsingBinPack() {
-        log.info("Calling the bin pack scaler");
-        int size = consumerGroupDescriptionMap.get(Controller.CONSUMER_GROUP).members().size();
-        if(Duration.between(lastScaleUpDecision, Instant.now()).toSeconds() >= 30) {
-            scaleAsPerBinPack(size);
-        } else {
-            log.info("Scale  cooldown period has not elapsed yet not taking decisions");
-        }
-    }*/
 
-
-  /*  public static void scaleAsPerBinPack(int currentsize) {
-
-        log.info("Currently we have this number of consumers {}", currentsize);
-        int neededsize = binPackAndScale();
-        log.info("We currently need the following consumers (as per the bin pack) {}", neededsize);
-
-        int replicasForscale = neededsize - currentsize;
-        // but is the assignmenet the same
-        if (replicasForscale == 0) {
-            log.info("No need to autoscale");
-          *//*  if(!doesTheCurrentAssigmentViolateTheSLA()) {
-                //with the same number of consumers if the current assignment does not violate the SLA
-                return;
-            } else {
-                log.info("We have to enforce rebalance");
-                //TODO skipping it for now. (enforce rebalance)
-            }*//*
-        } else if (replicasForscale > 0) {
-            //TODO IF and Else IF can be in the same logic
-            log.info("We have to upscale by {}", replicasForscale);
-            try (final KubernetesClient k8s = new DefaultKubernetesClient()) {
-                k8s.apps().deployments().inNamespace("default").withName("cons1persec").scale(neededsize);
-                log.info("I have Upscaled you should have {}", neededsize);
-            }
-
-            lastScaleUpDecision = Instant.now();
-            lastScaleDownDecision = Instant.now();
-            lastCGQuery = Instant.now();
-            lastScaleTime = Instant.now();
-        } else {
-            try (final KubernetesClient k8s = new DefaultKubernetesClient()) {
-                k8s.apps().deployments().inNamespace("default").withName("cons1persec").scale(neededsize);
-                log.info("I have Downscaled you should have {}", neededsize);
-                lastScaleUpDecision = Instant.now();
-                lastScaleDownDecision = Instant.now();
-                lastCGQuery = Instant.now();
-                lastScaleTime = Instant.now();
-            }
-        }
-    }
-*/
-
-   /* private static int binPackAndScale() {
-        log.info("Inside binPackAndScale ");
-        List<Consumer> consumers = new ArrayList<>();
-        int consumerCount = 0;
-
-        List<Partition> parts = new ArrayList<>(partitions);
-        dynamicAverageMaxConsumptionRate = 95.0;
-
-        long maxLagCapacity;
-        maxLagCapacity = (long) (dynamicAverageMaxConsumptionRate * wsla);
-        consumers.add(new Consumer(consumerCount, maxLagCapacity, dynamicAverageMaxConsumptionRate));
-
-        //if a certain partition has a lag higher than R Wmax set its lag to R*Wmax
-        // atention to the window
-        for (Partition partition : parts) {
-            if (partition.getLag() > maxLagCapacity) {
-                log.info("Since partition {} has lag {} higher than consumer capacity times wsla {}" +
-                        " we are truncating its lag", partition.getId(), partition.getLag(), maxLagCapacity);
-                partition.setLag(maxLagCapacity);
-            }
-        }
-        //if a certain partition has an arrival rate  higher than R  set its arrival rate  to R
-        //that should not happen in a well partionned topic
-        for (Partition partition : parts) {
-            if (partition.getArrivalRate() > dynamicAverageMaxConsumptionRate) {
-                log.info("Since partition {} has arrival rate {} higher than consumer service rate {}" +
-                                " we are truncating its arrival rate", partition.getId(),
-                        String.format("%.2f",  partition.getArrivalRate()),
-                        String.format("%.2f", dynamicAverageMaxConsumptionRate));
-                partition.setArrivalRate(dynamicAverageMaxConsumptionRate);
-            }
-        }
-
-        //start the bin pack FFD with sort
-        Collections.sort(parts, Collections.reverseOrder());
-
-        Consumer consumer = null;
-        for (Partition partition : parts) {
-            for (Consumer cons : consumers) {
-                //TODO externalize these choices on the inout to the FFD bin pack
-                // TODO  hey stupid use instatenous lag instead of average lag.
-                // TODO average lag is a decision on past values especially for long DI.
-                if (cons.getRemainingLagCapacity() >=  partition.getLag() *//*partition.getAverageLag()*//* &&
-                        cons.getRemainingArrivalCapacity() >= partition.getArrivalRate()) {
-                    cons.assignPartition(partition);
-                    // we are done with this partition, go to next
-                    break;
-                }
-                //we have iterated over all the consumers hoping to fit that partition, but nope
-                //we shall create a new consumer i.e., scale up
-                if (cons == consumers.get(consumers.size() - 1)) {
-                    consumerCount++;
-                    consumer = new Consumer(consumerCount, (long) (dynamicAverageMaxConsumptionRate * wsla),
-                            dynamicAverageMaxConsumptionRate);
-                    consumer.assignPartition(partition);
-                }
-            }
-            if (consumer != null) {
-                consumers.add(consumer);
-                consumer = null;
-            }
-        }
-
-        log.info(" The BP scaler recommended {}", consumers.size());
-
-        // copy consumers and partitions for fair assignment
-        List<Consumer> fairconsumers = new ArrayList<>(consumers.size());
-        List<Partition> fairpartitions= new ArrayList<>();
-
-        for (Consumer cons : consumers) {
-            fairconsumers.add(new Consumer(cons.getId(), maxLagCapacity, dynamicAverageMaxConsumptionRate));
-            for(Partition p : cons.getAssignedPartitions()){
-                fairpartitions.add(p);
-            }
-        }
-
-        //sort partitions in descending order for debugging purposes
-        fairpartitions.sort(new Comparator<Partition>() {
-            @Override
-            public int compare(Partition o1, Partition o2) {
-                return Double.compare(o2.getArrivalRate(), o1.getArrivalRate());
-            }
-        });
-
-        //1. list of consumers that will contain the fair assignment
-        //2. list of consumers out of the bin pack.
-        //3. the partition sorted in their decreasing arrival rate.
-        assignPartitionsFairly(fairconsumers,consumers,fairpartitions);
-
-
-
-
-
-        for (Consumer cons : fairconsumers) {
-            log.info("fair consumer {} is assigned the following partitions", cons.getId() );
-            for(Partition p : cons.getAssignedPartitions()) {
-                log.info("fair Partition {}", p.getId());
-            }
-        }
-
-        assignment = fairconsumers;
-        return consumers.size();
-    }
-
-
-
-    public static void assignPartitionsFairly(
-            final List<Consumer> assignment,
-            final List<Consumer> consumers,
-            final List<Partition> partitionsArrivalRate) {
-        if (consumers.isEmpty()) {
-            return;
-        }// Track total lag assigned to each consumer (for the current topic)
-        final Map<Integer, Double> consumerTotalArrivalRate = new HashMap<>(consumers.size());
-        final Map<Integer, Integer> consumerTotalPartitions = new HashMap<>(consumers.size());
-        final Map<Integer, Double> consumerRemainingAllowableArrivalRate = new HashMap<>(consumers.size());
-        final Map<Integer, Double> consumerAllowableArrivalRate = new HashMap<>(consumers.size());
-
-
-        for (Consumer cons : consumers) {
-            consumerTotalArrivalRate.put(cons.getId(), 0.0);
-            consumerAllowableArrivalRate.put(cons.getId(), 95.0);
-        }
-
-        // Track total number of partitions assigned to each consumer (for the current topic)
-        for (Consumer cons : consumers) {
-            consumerTotalPartitions.put(cons.getId(), 0);
-            consumerRemainingAllowableArrivalRate.put(cons.getId(), consumerAllowableArrivalRate.get(cons.getId()));
-        }
-
-        // might want to remove, the partitions are sorted anyway.
-        //First fit decreasing
-        partitionsArrivalRate.sort((p1, p2) -> {
-            // If lag is equal, lowest partition id first
-            if (p1.getArrivalRate() == p2.getArrivalRate()) {
-                return Integer.compare(p1.getId(), p2.getId());
-            }
-            // Highest arrival rate first
-            return Double.compare(p2.getArrivalRate(), p1.getArrivalRate());
-        });
-        for (Partition partition : partitionsArrivalRate) {
-            // Assign to the consumer with least number of partitions, then smallest total lag, then smallest id arrival rate
-            // returns the consumer with lowest assigned partitions, if all assigned partitions equal returns the min total arrival rate
-            final Integer memberId = Collections
-                    .min(consumerTotalArrivalRate.entrySet(), (c1, c2) -> {
-                        // Lowest partition count first
-
-                        //TODO is that necessary partition count first... not really......
-                        //lowest number of partitions first.
-                        final int comparePartitionCount = Integer.compare(consumerTotalPartitions.get(c1.getKey()),
-                                consumerTotalPartitions.get(c2.getKey()));
-                        if (comparePartitionCount != 0) {
-                            return comparePartitionCount;
-                        }
-                        // If partition count is equal, lowest total lag first, get the consumer with the lowest arrival rate
-                        final int compareTotalLags = Double.compare(c1.getValue(), c2.getValue());
-                        if (compareTotalLags != 0) {
-                            return compareTotalLags;
-                        }
-                        // If total arrival rate  is equal, lowest consumer id first
-                        return c1.getKey().compareTo(c2.getKey());
-                    }).getKey();
-            //we currently have the the consumer with the lowest lag
-*//*            System.out.println("Assigning the consumer {} with the lowest ArrivalRate {} to the partition with the highest ArrivalRate {} "+
-                    memberId + "  " + consumerTotalArrivalRate.get(memberId) + " " + partition.getArrivalRate());*//*
-
-
-
-            assignment.get(memberId).assignPartition(partition);
-            consumerTotalArrivalRate.put(memberId, consumerTotalArrivalRate.getOrDefault(memberId, 0.0) + partition.getArrivalRate());
-            consumerTotalPartitions.put(memberId, consumerTotalPartitions.getOrDefault(memberId, 0) + 1);
-            consumerRemainingAllowableArrivalRate.put(memberId, consumerAllowableArrivalRate.get(memberId)
-                    - consumerTotalArrivalRate.get(memberId));
-           *//* System.out.println("The remaining allowable arrival rate for consumer {} is {} " +
-                    memberId + " " + (consumerAllowableArrivalRate.get(memberId) - consumerTotalArrivalRate.get(memberId)));*//*
-
-//            System.out.println(
-//                    "Assigned partition {}-{} to consumer {}.  partition_arrival_rate={}, consumer_current_total_arrival_rate{} " +
-//                            " " + partition.getId() +
-//                            " " + memberId +
-//                            " " + partition.getArrivalRate() +
-//                            " " + consumerTotalArrivalRate.get(memberId));
-
-            log.info(
-                    "Assigned partition {} to consumer {}.  partition_arrival_rate={}, consumer_current_total_arrival_rate{} ",
-                    partition.getId(),
-                    memberId ,
-                    String.format("%.2f", partition.getArrivalRate()) ,
-                    consumerTotalArrivalRate.get(memberId));
-        }
-    }*/
 
 
     @Override
