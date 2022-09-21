@@ -66,42 +66,86 @@ public class AssignmentServer implements Runnable{
         }
     }
 
-
+    static boolean firsttime = true;
     public static class AssignmentService extends AssignmentServiceGrpc.AssignmentServiceImplBase {
         @Override
         public void getAssignment(AssignmentRequest request, StreamObserver<AssignmentResponse> responseObserver) {
 
             log.info(request.getRequest());
             //TODO Synchronize access to assignment
-            List<Consumer> assignment = Controller.assignment;
-            log.info("The assignment is {}", assignment);
 
-            List<ConsumerGrpc> assignmentReply = new ArrayList<>(assignment.size());
 
-            for (Consumer cons : assignment) {
-                List<PartitionGrpc> pgrpclist = new ArrayList<>();
-                for (Partition p : cons.getAssignedPartitions()) {
-                    log.info("partition {} is assigned to consumer {}", p.getId(), cons.getId());
-                    PartitionGrpc pgrpc =  PartitionGrpc.newBuilder().setId(p.getId()).build();
-                    pgrpclist.add(pgrpc);
+            if (firsttime) {
+
+
+                List<Consumer> assignment = new ArrayList<>();
+
+
+                Consumer c0 = new Consumer(95);
+                c0.setId("cons95-0");
+                //Consumer c1 = new Consumer("cons200-0",500L,100);
+
+                c0.assign(new Partition(0, 0L,0.0d));
+                c0.assign(new Partition(1, 0L,0.0d));
+                c0.assign(new Partition(2, 0L,0.0d));
+                c0.assign(new Partition(3, 0L,0.0d));
+                c0.assign(new Partition(4, 0L,0.0d));
+                assignment.add(c0);
+                //assignment.add(c1);
+                firsttime = false;
+
+
+                List<ConsumerGrpc> assignmentReply = new ArrayList<>(assignment.size());
+
+
+                for (Consumer cons : assignment) {
+                    List<PartitionGrpc> pgrpclist = new ArrayList<>();
+                    for (Partition p : cons.getAssignedPartitions()) {
+                        log.info("partition {} is assigned to consumer {}", p.getId(), cons.getId());
+                        PartitionGrpc pgrpc =  PartitionGrpc.newBuilder().setId(p.getId()).build();
+                        pgrpclist.add(pgrpc);
+                    }
+                    ConsumerGrpc consg  =  ConsumerGrpc.newBuilder().setId(cons.getId()).addAllAssignedPartitions(pgrpclist).build();
+                    assignmentReply.add(consg);
                 }
-                ConsumerGrpc consg  =  ConsumerGrpc.newBuilder().setId(cons.getId()).addAllAssignedPartitions(pgrpclist).build();
-                assignmentReply.add(consg);
+
+                responseObserver.onNext(AssignmentResponse.newBuilder().addAllConsumers(assignmentReply).build());
+                responseObserver.onCompleted();
+                log.info("Sent Assignment to client");
+
+
+
+
+            } else {
+
+
+                List<ConsumerGrpc> assignmentReply = new ArrayList<>(Controller.newassignment.size());
+
+
+                for (Consumer cons : Controller.newassignment) {
+                    List<PartitionGrpc> pgrpclist = new ArrayList<>();
+                    for (Partition p : cons.getAssignedPartitions()) {
+                        log.info("partition {} is assigned to consumer {}", p.getId(), cons.getId());
+                        PartitionGrpc pgrpc =  PartitionGrpc.newBuilder().setId(p.getId()).build();
+                        pgrpclist.add(pgrpc);
+                    }
+                    ConsumerGrpc consg  =  ConsumerGrpc.newBuilder().setId(cons.getId()).addAllAssignedPartitions(pgrpclist).build();
+                    assignmentReply.add(consg);
+                }
+
+                responseObserver.onNext(AssignmentResponse.newBuilder().addAllConsumers(assignmentReply).build());
+                responseObserver.onCompleted();
+                log.info("Sent Assignment to client");
+
             }
 
-          /*  for(ConsumerGrpc cons : assignmentReply){
-                log.info("Consumer {} has the following partitions", cons.getId());
-                for(PartitionGrpc part : cons.getAssignedPartitionsList()){
-                    log.info("partition {}", part.getId());
-                }
 
-            }*/
-            responseObserver.onNext(AssignmentResponse.newBuilder().addAllConsumers(assignmentReply).build());
-            responseObserver.onCompleted();
-            log.info("Sent Assignment to client");
-            Controller.joiningTime = Duration.between(Controller.lastScaleTime, Instant.now()).getSeconds();
-            log.info("joiningTime {}", Controller.joiningTime);
+
+            //PrometheusHttpClient.joiningTime = Duration.between(PrometheusHttpClient.lastScaleTime, Instant.now()).getSeconds();
+            //log.info("joiningTime {}", PrometheusHttpClient.joiningTime);*/
+            // }
         }
+
     }
 
 }

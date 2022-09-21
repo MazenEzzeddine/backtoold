@@ -72,6 +72,11 @@ public class Controller implements Runnable {
 
 
     private static void readEnvAndCrateAdminClient() throws ExecutionException, InterruptedException {
+
+        for (double c : capacities) {
+            currentConsumers.put(c, 0);
+            previousConsumers.put(c,0);
+        }
         sleep = Long.valueOf(System.getenv("SLEEP"));
         topic = System.getenv("TOPIC");
         cluster = System.getenv("CLUSTER");
@@ -91,6 +96,8 @@ public class Controller implements Runnable {
             partitions.add(new Partition(p.partition(), 0, 0));
         }
         log.info("topic has the following partitions {}", td.partitions().size());
+        //previousConsumers.put(100.0, 1);
+
     }
 
 
@@ -214,15 +221,16 @@ public class Controller implements Runnable {
             lastCGQuery = Instant.now();
         }*/
         //youMightWanttoScaleUsingBinPack();
-       // youMightWanttoScaleTrial2();
+        youMightWanttoScaleTrial2();
     }
 
 
     public static void  youMightWanttoScaleTrial2(){
+
         log.info("Inside binPackAndScale ");
         List<Consumer> consumers = new ArrayList<>();
         int consumerCount = 0;
-        List<Partition> parts = new ArrayList<>(topicpartitions);
+        List<Partition> parts = new ArrayList<>(partitions);
         dynamicAverageMaxConsumptionRate = 95.0;
         Map<Double, Consumer> currentConsumersByName = new HashMap<>();
         LeastLoadedFFD llffd = new LeastLoadedFFD(parts, 95.0);
