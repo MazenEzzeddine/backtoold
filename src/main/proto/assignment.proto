@@ -1,0 +1,30 @@
+syntax= "proto3";
+
+option java_multiple_files=true;
+
+
+message PartitionGrpc {
+  int32 id=1;
+  int64 lag=2;
+  double arrivalRate=3;
+}
+
+
+message ConsumerGrpc {
+  string id=1;
+  repeated PartitionGrpc assignedPartitions=2;
+}
+
+
+message AssignmentRequest {
+  string request = 1;
+}
+
+
+message AssignmentResponse {
+  repeated ConsumerGrpc consumers = 1;
+}
+
+service AssignmentService {
+  rpc getAssignment(AssignmentRequest) returns (AssignmentResponse) {}
+}

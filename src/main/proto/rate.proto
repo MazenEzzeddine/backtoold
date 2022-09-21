@@ -1,0 +1,20 @@
+syntax= "proto3";
+
+
+
+option java_multiple_files=true;
+import "google/protobuf/empty.proto";
+
+
+message RateRequest {
+  string rate =1;
+}
+
+message RateResponse {
+  float rate =1;
+}
+
+
+service RateService{
+  rpc consumptionRate (RateRequest) returns (RateResponse) {};
+}
