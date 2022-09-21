@@ -231,10 +231,11 @@ public class Controller implements Runnable {
         List<Consumer> consumers = new ArrayList<>();
         int consumerCount = 0;
         List<Partition> parts = new ArrayList<>(partitions);
-        dynamicAverageMaxConsumptionRate = 95.0;
         Map<Double, Consumer> currentConsumersByName = new HashMap<>();
         LeastLoadedFFD llffd = new LeastLoadedFFD(parts, 95.0);
         List<Consumer> cons = llffd.LeastLoadFFDHeterogenous();
+
+        List<Consumer> conscopy = new ArrayList<>(cons);
 
         log.info("we currently need this consumer");
         log.info(cons);
