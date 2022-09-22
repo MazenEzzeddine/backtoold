@@ -57,7 +57,7 @@ public class Controller implements Runnable {
 
     static Map<Double, Integer> currentConsumers =  new HashMap<>();
 
-    final static      List<Double> capacities = Arrays.asList(95.0, 180.0);
+    final static      List<Double> capacities = Arrays.asList(95.0, 240.0);
 
     public static List<Consumer> newassignment = new ArrayList<>();
 
@@ -68,10 +68,16 @@ public class Controller implements Runnable {
 
     //////////////////////////////////////////////////
 
+    static Instant lastScaletime;
+
+    static boolean scaled = false;
+
 
 
 
     private static void readEnvAndCrateAdminClient() throws ExecutionException, InterruptedException {
+
+
 
         for (double c : capacities) {
             currentConsumers.put(c, 0);
@@ -140,6 +146,9 @@ public class Controller implements Runnable {
         return rateResponse.getRate();
     }
 
+
+    static double  previousTotalArrivalRate = 0.0;
+
     private static void getCommittedLatestOffsetsAndLag() throws ExecutionException, InterruptedException {
         committedOffsets = admin.listConsumerGroupOffsets(CONSUMER_GROUP)
                 .partitionsToOffsetAndMetadata().get();
@@ -189,23 +198,23 @@ public class Controller implements Runnable {
                 // NOT very critical condition
                 currentPartitionArrivalRate = previousPartitionArrivalRate.get(p.partition());
                 partitions.get(p.partition()).setArrivalRate(currentPartitionArrivalRate);
-                log.info("Arrival rate into partition {} is {}", t.partition(), partitions.get(p.partition()).getArrivalRate());
+             /*   log.info("Arrival rate into partition {} is {}", t.partition(), partitions.get(p.partition()).getArrivalRate());
                 log.info("lag of  partition {} is {}", t.partition(),
                         partitions.get(p.partition()).getLag());
-                log.info(partitions.get(p.partition()));
+                log.info(partitions.get(p.partition()));*/
             } else {
                 currentPartitionArrivalRate = (double) (timeoffset2 - timeoffset1) / doublesleep;
                 //if(currentPartitionArrivalRate==0) continue;
                 //TODO only update currentPartitionArrivalRate if (currentPartitionArrivalRate - previousPartitionArrivalRate) < 10 or threshold
                 // currentPartitionArrivalRate = previousPartitionArrivalRate.get(p.partition());
                 //TODO break
-                partitions.get(p.partition()).setArrivalRate(currentPartitionArrivalRate);
-                log.info(" Arrival rate into partition {} is {}", t.partition(),
+              partitions.get(p.partition()).setArrivalRate(currentPartitionArrivalRate);
+                 /* log.info(" Arrival rate into partition {} is {}", t.partition(),
                         partitions.get(p.partition()).getArrivalRate());
 
                 log.info(" lag of  partition {} is {}", t.partition(),
                         partitions.get(p.partition()).getLag());
-                log.info(partitions.get(p.partition()));
+                log.info(partitions.get(p.partition()));*/
             }
             //TODO add a condition for when both offsets timeoffset2 and timeoffset1 do not exist, i.e., are -1,
             previousPartitionArrivalRate.put(p.partition(), currentPartitionArrivalRate);
@@ -221,7 +230,20 @@ public class Controller implements Runnable {
             lastCGQuery = Instant.now();
         }*/
         //youMightWanttoScaleUsingBinPack();
-        youMightWanttoScaleTrial2();
+
+    /*    if (Duration.between(lastScaletime, Instant.now()).getSeconds()> 30)
+        youMightWanttoScaleTrial2();*/
+
+      /*  if(Math.abs(totalArrivalRate-previousTotalArrivalRate) > 10) {
+            return;
+        }
+
+        previousTotalArrivalRate = totalArrivalRate;
+*/
+
+
+        if (Duration.between(lastScaletime, Instant.now()).getSeconds()> 30)
+            youMightWanttoScaleTrial2();
     }
 
 
@@ -232,8 +254,11 @@ public class Controller implements Runnable {
         int consumerCount = 0;
         List<Partition> parts = new ArrayList<>(partitions);
         Map<Double, List<Consumer>> currentConsumersByName = new HashMap<>();
-        LeastLoadedFFD llffd = new LeastLoadedFFD(parts, 95.0);
-        List<Consumer> cons = llffd.LeastLoadFFDHeterogenous();
+    /*   LeastLoadedFFD llffd = new LeastLoadedFFD(parts, 95.0);
+        List<Consumer> cons = llffd.LeastLoadFFDHeterogenous();*/
+
+        FirstFitDecHetero hetero = new FirstFitDecHetero(parts, capacities);
+        List<Consumer> cons = hetero.fftFFDHetero();
 
 
         for(double c : capacities) {
@@ -265,14 +290,6 @@ public class Controller implements Runnable {
                 log.info("No need to scale consumer of capacity {}", d);
             }
 
-           // int factor2 = currentConsumers.get(d);
-
-
-/*
-            for (int i =0;i<factor2; i++) {
-
-                currentConsumersByName.get(d).setId("cons"+(int)d+ "-" + i);
-            }*/
 
             int index=0;
             for (Consumer c:  currentConsumersByName.get(d)) {
@@ -296,22 +313,22 @@ public class Controller implements Runnable {
 
 
 
-        log.info("current consumers");
 
-        for (Consumer co: cons) {
-            log.info(co);
-        }
+
+
+
+
 
         for (double d : capacities) {
             if (scaleByCapacity.get(d) != null && diffByCapacity.get(d)!=0) {
-                log.info("The statefulset {} shalll be  scaled to {}", "cons"+(int)d, scaleByCapacity.get(d) );
+                log.info("The statefulset {} shall be  scaled to {}", "cons"+(int)d, scaleByCapacity.get(d) );
                 if(Duration.between(warmup, Instant.now()).toSeconds() > 30 ) {
                     log.info("cons"+(int)d);
 
                     new Thread(()-> { try (final KubernetesClient k8s = new DefaultKubernetesClient()) {
                         k8s.apps().statefulSets().inNamespace("default").withName("cons"+(int)d).scale(scaleByCapacity.get(d));
                     }}).start();
-
+                    lastScaletime = Instant.now();
                 }
             }
         }
@@ -342,6 +359,7 @@ public class Controller implements Runnable {
         doublesleep = (double) sleep / 1000.0;
         try {
             //Initial delay so that the producer has started.
+            lastScaletime = Instant.now();
             Thread.sleep(30*1000);
         } catch (InterruptedException e) {
             e.printStackTrace();

@@ -61,7 +61,7 @@ public class LeastLoadedFFD {
     }
 
     public List<Consumer> LeastLoadFFDHeterogenous(){
-        List<Double> capacities = Arrays.asList(95.0, 180.0);
+        List<Double> capacities = Arrays.asList(95.0, 240.0);
         int capacityIndex = 0;
         List<Consumer> bins = new ArrayList<>();
         Collections.sort(items, Collections.reverseOrder());
