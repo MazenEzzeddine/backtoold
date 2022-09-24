@@ -317,8 +317,6 @@ public class Controller implements Runnable {
 
 
 
-
-
         for (double d : capacities) {
             if (scaleByCapacity.get(d) != null && diffByCapacity.get(d)!=0) {
                 log.info("The statefulset {} shall be  scaled to {}", "cons"+(int)d, scaleByCapacity.get(d) );
